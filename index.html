@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Todolist-Vuejs</title>
+	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.0.0/css/bootstrap.css">
+	<script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+</head>
+<body>
+	
+
+<div id="app">
+	<div class="input-group mb-3">
+	  <div class="input-group-prepend">
+		<span class="input-group-text" id="basic-addon1">待辦事項</span>
+	  </div>
+																<!--按鍵盤enter 觸發新增代辦--> 
+	  <input type="text" class="form-control" v-model="newTodo" @keyup.enter="addTodo" placeholder="準備要做的任務">
+	  <div class="input-group-append">  
+											<!--點擊觸發新增代辦-->
+		<button class="btn btn-primary"  @click="addTodo" type="button">新增</button>
+	  </div>
+	</div>
+	<div class="card text-center">
+	  <div class="card-header">
+		<ul class="nav nav-tabs card-header-tabs">
+		  <li class="nav-item">
+								  <!--點擊該頁籤 觸發切換頁籤效果的 組合語法-->
+			<a class="nav-link" :class="{'active':visibility=='all'}" @click="visibility = 'all'" href="#">全部</a>
+		  </li>
+		  <li class="nav-item">
+								  <!--點擊該頁籤 觸發切換頁籤效果的 組合語法-->
+			<a class="nav-link" :class="{'active':visibility=='active'}" @click="visibility = 'active'" href="#">進行中</a>
+		  </li>
+		  <li class="nav-item">
+								  <!--點擊該頁籤 觸發切換頁籤效果的 組合語法-->
+			<a class="nav-link" :class="{'active':visibility=='completed'}" @click="visibility = 'completed'" href="#">已完成</a>
+		  </li>
+		</ul>
+	  </div>
+	  <ul class="list-group list-group-flush text-left">
+												  <!--讓過濾過的資料存儲在item&key-->   <!--雙擊觸發編輯代辦-->   
+		<li class="list-group-item"               v-for="(item,key) in filteredTodos" @dblclick="editTodo(item)">
+		                        <!-- 如果兩者ID不相同就呈現出來-->
+			<div class="d-flex" v-if="item.id !== cachTodo.id">
+			<div class="form-check">
+			  <input type="checkbox" class="form-check-input" v-model="item.completed" @click="changeTodo(key)" :id="item.id">
+												<!--如果 判斷式為true則套用該class -->
+			  <label class="form-check-label" :class="{'completed':item.completed }"  :for="item.id">
+				{{ item.title }}
+			  </label>
+			</div>
+															 <!--點擊觸發刪除代辦-->
+			<button type="button" class="close ml-auto" @click="removeTodo(item)" aria-label="Close">
+			  <span aria-hidden="true">&times;</span>
+			</button>
+		  </div>
+		                            <!-- 如果兩者ID相同就呈現此input並將原本呈現的內容隱藏-->
+		  <input type="text" class="form-control" v-if="item.id === cachTodo.id"        
+		   v-model="cachTitle"      
+		   @keyup.esc="cancelEdit()"
+		   @keyup.enter="doneEdit(item)"   >
+		   <!--鍵盤按下ESC 觸發取消編輯，鍵盤按下enter 觸發完成編輯-->
+		</li>
+	  
+	
+	  </ul>
+	  <div class="card-footer d-flex justify-content-between">
+		<span>還有 {{ total }} 筆任務未完成</span>
+		<a href="#" @click="cleakall()" >清除所有任務</a>
+	  </div>
+	</div>
+  </div>
+  
+  <script>
+  var app = new Vue({
+	el: '#app',
+	data: {
+	  //新增待辦事項存文字
+	  newTodo:'',
+	  //呈現待辦事項的內容，陣列
+	  todos:[],
+		//雙擊編輯暫時存放Todo的地方
+		cachTodo : {},
+		//雙擊編輯標題食預存放的地方
+		cachTitle : {},
+		//新增變數 代表目前代表的頁籤
+		visibility:'all',
+		total:0
+	},
+	methods: {
+	  //新增新的待辦事項
+	  addTodo:function(){
+		//宣告一個變數等於 input欄位的值    .trim()刪除前後多餘的空白
+		let value = this.newTodo.trim();
+		//宣告一個變數等於時間轉乘的正整數
+		let timestamp = Math.floor(Date.now());
+		//如果欄位沒有輸入值就不能新增
+		if (!value) {
+		  return;
+		}
+		//將資料加到todos內
+		this.todos.push({
+		  id:timestamp,
+		  title:value,
+		  completed:false
+		});
+        // 未完成項目的數量+1
+		this.total ++;
+		//清空input欄位內的文字
+		this.newTodo=""
+	  },
+	  //刪除待辦事項  todo 為正點選的物件
+	  removeTodo:function(todo){
+		let vm = this;
+		/*  詳細的判斷ID*/
+		// let newIndex = '';
+		// //比對要刪除的物件跟所有的物件的ID要相符合的
+		// vm.todos.forEach(function(item,key){
+		// 	//如果todo id跟item id 一樣 就取出索引位置放在key的位置上
+		// 	if(todo.id === item.id){
+		// 		newIndex = key
+		// 	}
+		// })
+		/*精簡版*/
+		let newIndex = vm.todos.findIndex(function(item,key){
+			return todo.id === item.id
+		})
+
+		//刪除自定義newIndex位置的資料，不能用跟儲存待辦事項的item一樣，不然會依序刪除資料不會刪除指定的資料
+		this.todos.splice(newIndex,1);
+		// // 未完成項目的數量-1
+		this.total --;
+	  },
+	  //編輯待辦事項
+	  editTodo:function(item){
+		this.cachTodo = item;
+		this.cachTitle = item.title;
+		  
+	  },
+	  //取消編輯
+	  cancelEdit:function(){
+		//讓編輯預存的值為空值
+		this.cachTodo = {};
+	  },
+	  //完成編輯
+	  doneEdit:function(item){
+	    //將標題指向預存的標題
+		item.title =this.cachTitle;
+		//並把預存的標題清空
+		this.cachTitle = ''
+		//將預存的值換回來
+		this.cachTodo={};
+	  },
+	  //刪除全部代辦
+	  cleakall:function(){
+		let newIndex = '';
+		this.todos.splice(newIndex);
+		//// 未完成項目的數量 歸零
+		this.total=0;
+	  },
+	  //改變代辦完成與否 增減TOTAL數量
+	  changeTodo:function(key){
+		  if(this.todos[key].completed == false ){
+			this.total --;
+		  }else {
+			this.total ++;
+		  }
+	  }
+	},
+	computed: {
+	  //過濾分類原始的代辦資料
+	  filteredTodos:function(){
+		//如果頁籤在'全部'
+		if(this.visibility=='all'){
+		  return this.todos;
+		}
+		//如果頁籤在'未完成'
+		else if(this.visibility =='active'){
+		  //宣告一個陣列 接收todos未完成的內容
+		  let    newTodo=[];
+		  //每一個todo
+		  this.todos.forEach(function(item){
+			//如果todo '未完成'
+			if (!item.completed){
+			  //將未完成的內容新增到 'newTodo'
+			  newTodo.push(item);
+			}
+			
+		  })
+		  //回傳 'newTodos'的值
+		  return newTodo;
+			
+		  }else if(this.visibility =='completed'){
+			let newTodo=[];
+			this.todos.forEach(function(item){
+			  if (item.completed){
+				newTodo.push(item);
+			  }
+			})
+			return newTodo;
+		  }
+		},
+		
+	
+	
+	},
+	  
+  });
+  </script>
+  
+  <style>
+  .completed {
+	text-decoration: line-through
+  }
+  </style>
+   
+	
+	
+</body>
+</html>
